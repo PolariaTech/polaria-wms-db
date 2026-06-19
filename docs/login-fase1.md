@@ -126,6 +126,10 @@ VALUES (gen_random_uuid(), 'operador_cuenta', 'X', 'x', 'x@test.com');
 - RLS y políticas SELECT mínimas
 - Índices para búsqueda de login
 
+## Integración con Mateo (chatbot IA)
+
+Los campos `correo`, `username` e `id_auth` de `usuario` también alimentan el SSO hacia Mateo. El handoff no persiste datos en PostgreSQL; el API emite un JWT efímero. Detalle en [Integración Mateo — base de datos](mateo-integracion-bd.md).
+
 ## Fase 2 (fuera de alcance)
 
 - `asignacion_bodega`, bodegas, solicitud de alta
