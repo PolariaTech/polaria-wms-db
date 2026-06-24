@@ -22,6 +22,8 @@ const migrations = [
   '011_company.sql',
   '012_user.sql',
   '013_account.sql',
+  '014_fix_puede_crear_rol.sql',
+  '015_multitenant_rls_base.sql',
 ];
 
 async function main() {
@@ -43,7 +45,7 @@ async function main() {
   const { rows: tables } = await client.query(`
     SELECT table_name FROM information_schema.tables
     WHERE table_schema = 'public'
-      AND table_name IN ('rol', 'empresa', 'usuario', 'cuenta')
+      AND table_name IN ('rol', 'empresa', 'usuario', 'cuenta', 'bodega', 'asignacion_bodega')
     ORDER BY table_name
   `);
   const { rows: [{ roles }] } = await client.query('SELECT COUNT(*)::int AS roles FROM rol');

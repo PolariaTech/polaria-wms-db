@@ -14,5 +14,5 @@ RETURNS uuid
 LANGUAGE sql
 STABLE
 AS $$
-    SELECT NULL::uuid;
+    SELECT nullif(current_setting('request.jwt.claim.sub', true), '')::uuid;
 $$;

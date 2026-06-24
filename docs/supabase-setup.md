@@ -29,7 +29,7 @@ npx supabase link --project-ref zmdokvjewvqaftnvulsr -p "TU_CONTRASEÑA"
 npx supabase db push
 ```
 
-Tras `db push`, en **Table Editor**: `rol`, `empresa`, `usuario`, `cuenta`.
+Tras `db push`, en **Table Editor**: `rol`, `empresa`, `usuario`, `cuenta`, `bodega`, `asignacion_bodega`.
 
 ## Verificar
 
@@ -38,14 +38,21 @@ SQL Editor:
 ```sql
 SELECT table_name FROM information_schema.tables
 WHERE table_schema = 'public'
-  AND table_name IN ('rol', 'empresa', 'usuario', 'cuenta');
+  AND table_name IN ('rol', 'empresa', 'usuario', 'cuenta', 'bodega', 'asignacion_bodega');
 
 SELECT COUNT(*) FROM rol;  -- debe ser 9
 ```
 
+Para validar el aislamiento base de POL-2:
+
+```sql
+-- En local, ejecutar antes scripts/bootstrap-auth.sql.
+\i scripts/validate-rls-tenant.sql
+```
+
 ## Estructura en el repo
 
-- `migrations/` — SQL fuente (001 … 013)
+- `migrations/` — SQL fuente (001 … 015)
 - `supabase/migrations/` — enlace al mismo folder (para el CLI)
 - `supabase/config.toml` — config local del CLI
 
@@ -53,7 +60,7 @@ SELECT COUNT(*) FROM rol;  -- debe ser 9
 
 SQL Editor → pegar y ejecutar en orden:
 
-`001_extensions.sql` → `002_enums.sql` → `010_roles.sql` → `011_company.sql` → `012_user.sql` → `013_account.sql`
+`001_extensions.sql` → `002_enums.sql` → `010_roles.sql` → `011_company.sql` → `012_user.sql` → `013_account.sql` → `014_fix_puede_crear_rol.sql` → `015_multitenant_rls_base.sql`
 
 (No ejecutar `scripts/bootstrap-auth.sql` en Supabase; `auth.users` ya existe.)
 

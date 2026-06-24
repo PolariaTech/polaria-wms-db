@@ -20,24 +20,31 @@ VALUES (
 INSERT INTO empresa (codigo_empresa, razon_social, id_creador)
 VALUES ('ACME', 'ACME Alimentos S.A.', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
 
-INSERT INTO usuario (id_usuario, id_auth, id_rol, codigo_empresa, id_creador, nombre, username, correo)
+INSERT INTO cuenta (codigo_cuenta, codigo_empresa, nombre_comercial, id_creador)
+VALUES ('ACME-01', 'ACME', 'ACME Operaciones', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+
+INSERT INTO usuario (
+    id_usuario,
+    id_auth,
+    id_rol,
+    codigo_empresa,
+    codigo_cuenta,
+    id_creador,
+    nombre,
+    username,
+    correo
+)
 VALUES (
     'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
     '22222222-2222-2222-2222-222222222222',
     'administrador_cuenta',
     'ACME',
+    'ACME-01',
     'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
     'Admin ACME',
     'admin.acme',
     'admin@acme.test'
 );
-
-INSERT INTO cuenta (codigo_cuenta, codigo_empresa, nombre_comercial, id_creador)
-VALUES ('ACME-01', 'ACME', 'ACME Operaciones', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
-
-UPDATE usuario
-SET codigo_cuenta = 'ACME-01'
-WHERE id_usuario = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
 
 INSERT INTO usuario (id_usuario, id_auth, id_rol, codigo_empresa, codigo_cuenta, id_creador, nombre, username, correo)
 VALUES (
@@ -52,6 +59,22 @@ VALUES (
     'ops@acme.test'
 );
 
+INSERT INTO bodega (id_bodega, codigo_cuenta, codigo_bodega, nombre, id_creador)
+VALUES (
+    'dddddddd-dddd-dddd-dddd-dddddddddddd',
+    'ACME-01',
+    'FRIO-01',
+    'Bodega Frio ACME',
+    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
+);
+
+INSERT INTO asignacion_bodega (id_usuario, id_bodega, id_creador)
+VALUES (
+    'cccccccc-cccc-cccc-cccc-cccccccccccc',
+    'dddddddd-dddd-dddd-dddd-dddddddddddd',
+    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
+);
+
 COMMIT;
 
 -- Verificaciones
@@ -59,6 +82,7 @@ SELECT COUNT(*) AS roles_count FROM rol;
 SELECT id_rol, codigo_empresa, codigo_cuenta FROM usuario ORDER BY username;
 SELECT codigo_empresa, razon_social FROM empresa;
 SELECT codigo_cuenta, codigo_empresa FROM cuenta;
+SELECT codigo_bodega, codigo_cuenta FROM bodega ORDER BY codigo_bodega;
 
 -- Login V2: empresa + username
 SELECT u.username, u.id_rol, e.codigo_empresa
@@ -74,5 +98,5 @@ BEGIN
     RAISE EXCEPTION 'Se esperaba violación de chk_usuario_contexto';
 EXCEPTION
     WHEN check_violation THEN
-        RAISE NOTICE 'OK: chk_usuario_contexto rechazó cliente sin empresa';
+        RAISE NOTICE 'OK: chk_usuario_contexto rechazó cliente sin tenant';
 END $$;
