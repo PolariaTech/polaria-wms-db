@@ -34,6 +34,8 @@ Flujo de login:
 | `empresa` | Cliente jurídico del SaaS |
 | `cuenta` | Tenant operativo bajo una empresa |
 | `usuario` | Perfil operativo vinculado a `auth.users` |
+| `bodega` | Bodega física bajo una cuenta |
+| `asignacion_bodega` | Usuario ↔ bodega (roles nivel bodega) |
 
 ## Reglas de negocio
 
@@ -43,7 +45,7 @@ Flujo de login:
 - **Correo** (`citext`) y **username** (`citext`) únicos para login por correo o nombre de usuario.
 - **Contraseñas**: solo en `auth.users`; `usuario.id_auth` es la integración 1:1.
 - **Autorización**: no usar `user_metadata`; el rol vive en `usuario.id_rol`.
-- **RLS**: habilitado en todas las tablas expuestas; políticas mínimas de solo lectura acotada.
+- **RLS**: habilitado en tablas expuestas; lectura acotada por tenant y escritura plataforma solo configurador. Detalle en [Políticas RLS](rls-politicas.md).
 
 ## Índices de login
 
@@ -132,10 +134,10 @@ Los campos `correo`, `username` e `id_auth` de `usuario` también alimentan el S
 
 ## Fase 2 (fuera de alcance)
 
-- `asignacion_bodega`, bodegas, solicitud de alta
 - Catálogos operativos (proveedor, producto, etc.)
 - Compras, ventas, inventario en vivo (`warehouse_state`)
-- Políticas RLS de escritura por rol
 - Triggers de sincronización Auth ↔ `usuario` (signup/onboarding)
 - Funciones RPC de onboarding (crear empresa + admin + cuenta)
 - Claims JWT vía `app_metadata` (si se adopta en backend)
+
+Ver [Políticas RLS](rls-politicas.md) para lo ya implementado: helpers, aislamiento por cuenta/bodega y escritura configurador.
