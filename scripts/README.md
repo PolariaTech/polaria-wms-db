@@ -8,7 +8,7 @@ Orden recomendado para validación local o en Supabase SQL Editor.
 |--------|----------------|
 | Supabase (todo en uno) | `all-migrations-supabase.sql` |
 | Supabase CLI | `supabase db push` (`migrations/` ↔ `supabase/migrations/`) |
-| Local / por archivo | `migrations/001` … `030` |
+| Local / por archivo | `migrations/001` … `040` |
 
 Antes de validar en local, ejecutar `bootstrap-auth.sql` (schema `auth`, stub `auth.uid()`).
 
@@ -56,3 +56,4 @@ Simulación: `SET LOCAL ROLE authenticated` + `set_config('request.jwt.claim.sub
 | `seed-configurador.sql` | Solo usuario TI en entorno vacío |
 | `apply-migrations-remote.mjs` | Aplicar migraciones al remoto |
 | `apply-remote-migrations.ps1` | Wrapper PowerShell migraciones |
+| `verify-schema-v1-alignment.sql` | Comprueba tablas/columnas 031–040 en remoto |
