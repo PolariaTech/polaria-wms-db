@@ -196,5 +196,75 @@ CREATE POLICY cuenta_select_scope
 
 GRANT SELECT ON cuenta TO authenticated;
 
+-- ========== 014_fix_puede_crear_rol.sql ==========
+UPDATE rol SET puede_crear_rol = 'configurador' WHERE id_rol <> 'configurador';
+UPDATE rol SET descripcion = 'Equipo TI del proveedor SaaS. Crea empresas y usuarios con cualquier rol.'
+WHERE id_rol = 'configurador';
+
+-- ========== 015_rls_base.sql ==========
+CREATE SCHEMA IF NOT EXISTS app;
+
+CREATE OR REPLACE FUNCTION app.current_rol()
+RETURNS wms_rol LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+    SELECT u.id_rol FROM usuario u WHERE u.id_auth = auth.uid() AND u.esta_activo LIMIT 1;
+$$;
+
+CREATE OR REPLACE FUNCTION app.is_configurador()
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+    SELECT EXISTS (SELECT 1 FROM usuario u WHERE u.id_auth = auth.uid() AND u.esta_activo AND u.id_rol = 'configurador');
+$$;
+
+CREATE OR REPLACE FUNCTION app.current_codigo_empresa()
+RETURNS varchar LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+    SELECT u.codigo_empresa FROM usuario u WHERE u.id_auth = auth.uid() AND u.esta_activo LIMIT 1;
+$$;
+
+CREATE OR REPLACE FUNCTION app.current_codigo_cuenta()
+RETURNS varchar LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+    SELECT u.codigo_cuenta FROM usuario u WHERE u.id_auth = auth.uid() AND u.esta_activo LIMIT 1;
+$$;
+
+CREATE OR REPLACE FUNCTION app.has_empresa_access(p_codigo_empresa varchar)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+    SELECT app.is_configurador() OR (p_codigo_empresa IS NOT NULL AND p_codigo_empresa = app.current_codigo_empresa());
+$$;
+
+CREATE OR REPLACE FUNCTION app.has_cuenta_access(p_codigo_cuenta varchar)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+    SELECT app.is_configurador() OR (p_codigo_cuenta IS NOT NULL AND p_codigo_cuenta = app.current_codigo_cuenta());
+$$;
+
+GRANT USAGE ON SCHEMA app TO authenticated;
+GRANT EXECUTE ON FUNCTION app.current_rol(), app.is_configurador(), app.current_codigo_empresa(),
+    app.current_codigo_cuenta(), app.has_empresa_access(varchar), app.has_cuenta_access(varchar) TO authenticated;
+
+DROP POLICY IF EXISTS usuario_select_own ON usuario;
+DROP POLICY IF EXISTS usuario_select_scope ON usuario;
+CREATE POLICY usuario_select_scope ON usuario FOR SELECT TO authenticated USING (
+    id_auth = auth.uid()
+    OR app.is_configurador()
+    OR (usuario.codigo_cuenta IS NOT NULL AND usuario.codigo_cuenta = app.current_codigo_cuenta())
+    OR (app.current_codigo_cuenta() IS NULL AND usuario.codigo_empresa IS NOT NULL AND usuario.codigo_empresa = app.current_codigo_empresa())
+);
+
+DROP POLICY IF EXISTS empresa_select_scope ON empresa;
+CREATE POLICY empresa_select_scope ON empresa FOR SELECT TO authenticated
+    USING (app.has_empresa_access(empresa.codigo_empresa));
+
+DROP POLICY IF EXISTS cuenta_select_scope ON cuenta;
+CREATE POLICY cuenta_select_scope ON cuenta FOR SELECT TO authenticated
+    USING (app.has_empresa_access(cuenta.codigo_empresa));
+
+REVOKE ALL ON rol     FROM anon, authenticated;
+REVOKE ALL ON empresa FROM anon, authenticated;
+REVOKE ALL ON usuario FROM anon, authenticated;
+REVOKE ALL ON cuenta  FROM anon, authenticated;
+GRANT SELECT ON rol     TO authenticated;
+GRANT SELECT ON empresa TO authenticated;
+GRANT SELECT ON usuario TO authenticated;
+GRANT SELECT ON cuenta  TO authenticated;
+
+COMMENT ON SCHEMA app IS 'Helpers de seguridad RLS (contexto del usuario autenticado). No expuesto via PostgREST.';
+
 -- Verificación
 SELECT COUNT(*) AS roles FROM rol;

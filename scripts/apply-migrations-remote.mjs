@@ -22,6 +22,8 @@ const migrations = [
   '011_company.sql',
   '012_user.sql',
   '013_account.sql',
+  '014_fix_puede_crear_rol.sql',
+  '015_rls_base.sql',
 ];
 
 async function main() {
