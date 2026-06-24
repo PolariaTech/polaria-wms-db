@@ -196,5 +196,298 @@ CREATE POLICY cuenta_select_scope
 
 GRANT SELECT ON cuenta TO authenticated;
 
+-- ========== 014_fix_puede_crear_rol.sql ==========
+UPDATE rol
+SET puede_crear_rol = 'configurador'
+WHERE id_rol <> 'configurador';
+
+UPDATE rol
+SET descripcion = 'Equipo TI del proveedor SaaS. Crea empresas y usuarios con cualquier rol.'
+WHERE id_rol = 'configurador';
+
+-- ========== 015_rls_helpers.sql ==========
+CREATE TYPE auth_wms_usuario_contexto AS (
+    id_usuario uuid,
+    id_rol wms_rol,
+    nivel rol_nivel,
+    codigo_empresa varchar(32),
+    codigo_cuenta varchar(32),
+    esta_activo boolean
+);
+
+CREATE OR REPLACE FUNCTION auth_wms_usuario_actual()
+RETURNS auth_wms_usuario_contexto
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT
+        u.id_usuario,
+        u.id_rol,
+        r.nivel,
+        u.codigo_empresa,
+        u.codigo_cuenta,
+        u.esta_activo
+    FROM usuario u
+    INNER JOIN rol r ON r.id_rol = u.id_rol
+    WHERE u.id_auth = auth.uid()
+      AND u.esta_activo
+    LIMIT 1
+$$;
+
+CREATE OR REPLACE FUNCTION auth_wms_es_configurador()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT EXISTS (
+        SELECT 1
+        FROM usuario u
+        WHERE u.id_auth = auth.uid()
+          AND u.esta_activo
+          AND u.id_rol = 'configurador'
+    )
+$$;
+
+CREATE OR REPLACE FUNCTION auth_wms_puede_ver_empresa(p_codigo_empresa varchar)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT EXISTS (
+        SELECT 1
+        FROM usuario u
+        INNER JOIN empresa e ON e.codigo_empresa = p_codigo_empresa
+        WHERE u.id_auth = auth.uid()
+          AND u.esta_activo
+          AND e.esta_activa
+          AND (
+              u.id_rol = 'configurador'
+              OR u.codigo_empresa = p_codigo_empresa
+          )
+    )
+$$;
+
+CREATE OR REPLACE FUNCTION auth_wms_puede_ver_cuenta(p_codigo_cuenta varchar)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT EXISTS (
+        SELECT 1
+        FROM usuario u
+        INNER JOIN rol r ON r.id_rol = u.id_rol
+        INNER JOIN cuenta c ON c.codigo_cuenta = p_codigo_cuenta
+        INNER JOIN empresa e ON e.codigo_empresa = c.codigo_empresa
+        WHERE u.id_auth = auth.uid()
+          AND u.esta_activo
+          AND c.esta_activa
+          AND e.esta_activa
+          AND (
+              u.id_rol = 'configurador'
+              OR (
+                  u.id_rol = 'administrador_cuenta'
+                  AND u.codigo_cuenta IS NULL
+                  AND c.codigo_empresa = u.codigo_empresa
+              )
+              OR (
+                  r.nivel = 'bodega'
+                  AND c.codigo_empresa = u.codigo_empresa
+              )
+              OR (
+                  u.codigo_cuenta IS NOT NULL
+                  AND u.codigo_cuenta = p_codigo_cuenta
+                  AND c.codigo_empresa = u.codigo_empresa
+              )
+          )
+    )
+$$;
+
+REVOKE ALL ON FUNCTION auth_wms_usuario_actual() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION auth_wms_usuario_actual() FROM anon, authenticated;
+REVOKE ALL ON FUNCTION auth_wms_es_configurador() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION auth_wms_es_configurador() FROM anon, authenticated;
+REVOKE ALL ON FUNCTION auth_wms_puede_ver_empresa(varchar) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION auth_wms_puede_ver_empresa(varchar) FROM anon, authenticated;
+REVOKE ALL ON FUNCTION auth_wms_puede_ver_cuenta(varchar) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION auth_wms_puede_ver_cuenta(varchar) FROM anon, authenticated;
+
+-- ========== 016_rls_cuenta_scope.sql ==========
+GRANT EXECUTE ON FUNCTION auth_wms_usuario_actual() TO authenticated;
+GRANT EXECUTE ON FUNCTION auth_wms_es_configurador() TO authenticated;
+GRANT EXECUTE ON FUNCTION auth_wms_puede_ver_empresa(varchar) TO authenticated;
+GRANT EXECUTE ON FUNCTION auth_wms_puede_ver_cuenta(varchar) TO authenticated;
+
+DROP POLICY IF EXISTS empresa_select_scope ON empresa;
+CREATE POLICY empresa_select_scope
+    ON empresa FOR SELECT TO authenticated
+    USING (auth_wms_puede_ver_empresa(codigo_empresa));
+
+DROP POLICY IF EXISTS cuenta_select_scope ON cuenta;
+CREATE POLICY cuenta_select_scope
+    ON cuenta FOR SELECT TO authenticated
+    USING (auth_wms_puede_ver_cuenta(codigo_cuenta));
+
+DROP POLICY IF EXISTS usuario_select_scope_admin ON usuario;
+CREATE POLICY usuario_select_scope_admin
+    ON usuario FOR SELECT TO authenticated
+    USING (
+        auth_wms_es_configurador()
+        OR (
+            (auth_wms_usuario_actual()).id_rol = 'administrador_cuenta'
+            AND usuario.codigo_empresa = (auth_wms_usuario_actual()).codigo_empresa
+            AND (
+                (auth_wms_usuario_actual()).codigo_cuenta IS NULL
+                OR usuario.codigo_cuenta = (auth_wms_usuario_actual()).codigo_cuenta
+            )
+        )
+    );
+
+-- ========== 017_bodega_base.sql ==========
+CREATE TABLE bodega (
+    id_bodega uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    codigo_cuenta varchar(32) NOT NULL,
+    codigo varchar(32) NOT NULL,
+    nombre varchar(255) NOT NULL,
+    esta_activa boolean NOT NULL DEFAULT true,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT uq_bodega_cuenta_codigo UNIQUE (codigo_cuenta, codigo),
+    CONSTRAINT fk_bodega_cuenta FOREIGN KEY (codigo_cuenta) REFERENCES cuenta (codigo_cuenta)
+);
+
+CREATE INDEX ix_bodega_cuenta ON bodega (codigo_cuenta);
+
+CREATE TRIGGER trg_bodega_updated_at
+    BEFORE UPDATE ON bodega
+    FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TABLE asignacion_bodega (
+    id_usuario uuid NOT NULL,
+    id_bodega uuid NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (id_usuario, id_bodega),
+    CONSTRAINT fk_asignacion_usuario FOREIGN KEY (id_usuario) REFERENCES usuario (id_usuario) ON DELETE CASCADE,
+    CONSTRAINT fk_asignacion_bodega FOREIGN KEY (id_bodega) REFERENCES bodega (id_bodega) ON DELETE CASCADE
+);
+
+CREATE INDEX ix_asignacion_usuario ON asignacion_bodega (id_usuario);
+CREATE INDEX ix_asignacion_bodega ON asignacion_bodega (id_bodega);
+
+CREATE OR REPLACE FUNCTION auth_wms_puede_ver_bodega(p_id_bodega uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT EXISTS (
+        SELECT 1
+        FROM usuario u
+        INNER JOIN rol r ON r.id_rol = u.id_rol
+        INNER JOIN bodega b ON b.id_bodega = p_id_bodega
+        INNER JOIN cuenta c ON c.codigo_cuenta = b.codigo_cuenta
+        INNER JOIN empresa e ON e.codigo_empresa = c.codigo_empresa
+        WHERE u.id_auth = auth.uid()
+          AND u.esta_activo
+          AND b.esta_activa
+          AND c.esta_activa
+          AND e.esta_activa
+          AND (
+              u.id_rol = 'configurador'
+              OR (
+                  u.id_rol = 'administrador_cuenta'
+                  AND (
+                      (u.codigo_cuenta IS NULL AND c.codigo_empresa = u.codigo_empresa)
+                      OR u.codigo_cuenta = b.codigo_cuenta
+                  )
+              )
+              OR (
+                  r.nivel = 'bodega'
+                  AND EXISTS (
+                      SELECT 1 FROM asignacion_bodega ab
+                      WHERE ab.id_usuario = u.id_usuario AND ab.id_bodega = p_id_bodega
+                  )
+              )
+              OR (
+                  u.id_rol = 'operador_cuenta'
+                  AND u.codigo_cuenta IS NOT NULL
+                  AND u.codigo_cuenta = b.codigo_cuenta
+              )
+          )
+    )
+$$;
+
+REVOKE ALL ON FUNCTION auth_wms_puede_ver_bodega(uuid) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION auth_wms_puede_ver_bodega(uuid) FROM anon, authenticated;
+GRANT EXECUTE ON FUNCTION auth_wms_puede_ver_bodega(uuid) TO authenticated;
+
+ALTER TABLE bodega ENABLE ROW LEVEL SECURITY;
+CREATE POLICY bodega_select_scope
+    ON bodega FOR SELECT TO authenticated
+    USING (auth_wms_puede_ver_bodega(id_bodega));
+GRANT SELECT ON bodega TO authenticated;
+
+ALTER TABLE asignacion_bodega ENABLE ROW LEVEL SECURITY;
+CREATE POLICY asignacion_bodega_select_scope
+    ON asignacion_bodega FOR SELECT TO authenticated
+    USING (auth_wms_puede_ver_bodega(id_bodega));
+GRANT SELECT ON asignacion_bodega TO authenticated;
+
+-- ========== 018_rls_write_policies.sql ==========
+REVOKE INSERT, UPDATE, DELETE ON rol FROM authenticated;
+REVOKE INSERT, UPDATE, DELETE ON empresa FROM authenticated;
+REVOKE INSERT, UPDATE, DELETE ON cuenta FROM authenticated;
+REVOKE INSERT, UPDATE, DELETE ON usuario FROM authenticated;
+REVOKE INSERT, UPDATE, DELETE ON bodega FROM authenticated;
+REVOKE INSERT, UPDATE, DELETE ON asignacion_bodega FROM authenticated;
+
+DROP POLICY IF EXISTS empresa_insert_configurador ON empresa;
+DROP POLICY IF EXISTS empresa_update_configurador ON empresa;
+CREATE POLICY empresa_insert_configurador ON empresa FOR INSERT TO authenticated
+    WITH CHECK (auth_wms_es_configurador());
+CREATE POLICY empresa_update_configurador ON empresa FOR UPDATE TO authenticated
+    USING (auth_wms_es_configurador()) WITH CHECK (auth_wms_es_configurador());
+GRANT INSERT, UPDATE ON empresa TO authenticated;
+
+DROP POLICY IF EXISTS cuenta_insert_configurador ON cuenta;
+DROP POLICY IF EXISTS cuenta_update_configurador ON cuenta;
+CREATE POLICY cuenta_insert_configurador ON cuenta FOR INSERT TO authenticated
+    WITH CHECK (auth_wms_es_configurador());
+CREATE POLICY cuenta_update_configurador ON cuenta FOR UPDATE TO authenticated
+    USING (auth_wms_es_configurador()) WITH CHECK (auth_wms_es_configurador());
+GRANT INSERT, UPDATE ON cuenta TO authenticated;
+
+DROP POLICY IF EXISTS usuario_insert_configurador ON usuario;
+DROP POLICY IF EXISTS usuario_update_configurador ON usuario;
+CREATE POLICY usuario_insert_configurador ON usuario FOR INSERT TO authenticated
+    WITH CHECK (auth_wms_es_configurador());
+CREATE POLICY usuario_update_configurador ON usuario FOR UPDATE TO authenticated
+    USING (auth_wms_es_configurador()) WITH CHECK (auth_wms_es_configurador());
+GRANT INSERT, UPDATE ON usuario TO authenticated;
+
+DROP POLICY IF EXISTS bodega_insert_configurador ON bodega;
+DROP POLICY IF EXISTS bodega_update_configurador ON bodega;
+CREATE POLICY bodega_insert_configurador ON bodega FOR INSERT TO authenticated
+    WITH CHECK (auth_wms_es_configurador());
+CREATE POLICY bodega_update_configurador ON bodega FOR UPDATE TO authenticated
+    USING (auth_wms_es_configurador()) WITH CHECK (auth_wms_es_configurador());
+GRANT INSERT, UPDATE ON bodega TO authenticated;
+
+DROP POLICY IF EXISTS asignacion_bodega_insert_configurador ON asignacion_bodega;
+DROP POLICY IF EXISTS asignacion_bodega_delete_configurador ON asignacion_bodega;
+CREATE POLICY asignacion_bodega_insert_configurador ON asignacion_bodega FOR INSERT TO authenticated
+    WITH CHECK (auth_wms_es_configurador());
+CREATE POLICY asignacion_bodega_delete_configurador ON asignacion_bodega FOR DELETE TO authenticated
+    USING (auth_wms_es_configurador());
+GRANT INSERT, DELETE ON asignacion_bodega TO authenticated;
+
 -- Verificación
 SELECT COUNT(*) AS roles FROM rol;
