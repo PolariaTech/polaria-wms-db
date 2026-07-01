@@ -1,0 +1,43 @@
+From 8bd946bbd58566083b4f5823ebcd03bc1f5e3e3d Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Wed, 1 Jul 2026 01:47:29 +0000
+Subject: [PATCH] feat(db): columna metadatos_catalogo en producto
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Soporta catálogo extendido usado por polaria-wms-web (precio, proveedor, SEO).
+---
+ migrations/043_producto_metadatos_catalogo.sql          | 6 ++++++
+ supabase/migrations/043_producto_metadatos_catalogo.sql | 6 ++++++
+ 2 files changed, 12 insertions(+)
+ create mode 100644 migrations/043_producto_metadatos_catalogo.sql
+ create mode 100644 supabase/migrations/043_producto_metadatos_catalogo.sql
+
+diff --git a/migrations/043_producto_metadatos_catalogo.sql b/migrations/043_producto_metadatos_catalogo.sql
+new file mode 100644
+index 0000000..04009b7
+--- /dev/null
++++ b/migrations/043_producto_metadatos_catalogo.sql
+@@ -0,0 +1,6 @@
++-- Metadatos extendidos del catálogo (título, slug, precio, SEO, etc.)
++ALTER TABLE producto
++    ADD COLUMN IF NOT EXISTS metadatos_catalogo jsonb NOT NULL DEFAULT '{}'::jsonb;
++
++COMMENT ON COLUMN producto.metadatos_catalogo IS
++    'Metadatos extendidos del catálogo (título, slug, precio, SEO, etc.).';
+diff --git a/supabase/migrations/043_producto_metadatos_catalogo.sql b/supabase/migrations/043_producto_metadatos_catalogo.sql
+new file mode 100644
+index 0000000..04009b7
+--- /dev/null
++++ b/supabase/migrations/043_producto_metadatos_catalogo.sql
+@@ -0,0 +1,6 @@
++-- Metadatos extendidos del catálogo (título, slug, precio, SEO, etc.)
++ALTER TABLE producto
++    ADD COLUMN IF NOT EXISTS metadatos_catalogo jsonb NOT NULL DEFAULT '{}'::jsonb;
++
++COMMENT ON COLUMN producto.metadatos_catalogo IS
++    'Metadatos extendidos del catálogo (título, slug, precio, SEO, etc.).';
+-- 
+2.43.0
+
