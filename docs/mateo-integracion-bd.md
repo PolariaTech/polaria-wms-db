@@ -9,17 +9,22 @@ El **Sistema de Gestión de Almacenes (WMS)** de Polaria se compone de tres repo
 | Repo | Rol |
 |------|-----|
 | [polaria-wms-db](https://github.com/PolariaTech/polaria-wms-db) (este) | Esquema PostgreSQL en Supabase |
-| [polaria-wms-api](https://github.com/PolariaTech/polaria-wms-api) | Backend NestJS (auth, negocio, handoff a Mateo) |
-| [polaria-wms-web](https://github.com/PolariaTech/polaria-wms-web) | Frontend Next.js |
+| [polaria-wms-api](https://github.com/PolariaTech/polaria-wms-api) | Backend NestJS (auth, negocio, SSO Mateo, widget-token, conversaciones) |
+| [polaria-wms-web](https://github.com/PolariaTech/polaria-wms-web) | Frontend Next.js (SSO + host del widget embebido) |
+| [Widget-react](https://github.com/PolariaTech/Widget-react) | Bundle del chat flotante Mateo Support |
 
-La integración planificada permite que un usuario **ya autenticado en el WMS** abra Mateo sin volver a iniciar sesión. El flujo es **SSO por handoff**: el API genera un código temporal (JWT firmado) que Mateo valida y convierte en sesión propia. Ese intercambio ocurre entre **API ↔ Mateo**; esta base de datos no participa en el handoff.
+Hay **dos** integraciones Mateo:
+
+1. **SSO handoff** (app Mateo full-page): JWT efímero firmado por el API; **esta BD no participa**.
+2. **Widget embebido**: tablas `widget_conversacion` / `widget_mensaje` + `resolve_web_user` (migración `051`). Ver [WIDGET-MATEO-CONVERSACIONES.md](WIDGET-MATEO-CONVERSACIONES.md).
 
 ```
 Usuario (WMS web) ──sesión──► polaria-wms-api
                                     │
-                                    │ JWT de handoff (firmado, efímero)
-                                    ▼
-                              chatbot-mateo.vercel.app
+                    ┌───────────────┼───────────────┐
+                    │ JWT handoff   │ widget-token  │ REST conversaciones
+                    ▼               ▼               ▼
+              chatbot-mateo    n8n (POL-71)    widget_* (Supabase)
 ```
 
 ## Campos de `usuario` relevantes
@@ -48,16 +53,15 @@ Desde la perspectiva de **polaria-wms-db**, el SSO es transparente: los datos de
 
 ## ¿Se requiere migración?
 
-**No.** El esquema actual de fase 1 es suficiente:
+**Para SSO handoff: no.** El esquema de fase 1 sigue bastando (`usuario` + Auth).
 
-- `usuario` con `correo`, `username` e `id_auth` cubre identidad WMS y handoff a Mateo.
-- No hay hueco funcional que obligue a nuevas tablas, columnas, enums ni políticas RLS específicas de Mateo.
-- Cualquier secreto de firma del JWT, URL de Mateo o TTL del token pertenece al **API** (variables de entorno), no a este repo.
+**Para el widget Mateo embebido (persistencia de chat): sí.** Ver [WIDGET-MATEO-CONVERSACIONES.md](WIDGET-MATEO-CONVERSACIONES.md) y la migración `051_widget_mateo_conversaciones.sql` (`widget_conversacion` / `widget_mensaje` + RLS + `resolve_web_user`).
 
-Si en el futuro Mateo necesitara **auditoría** de handoffs o **preferencias** guardadas en el WMS, eso sería un cambio de producto explícito y una migración nueva; hoy no está en alcance.
+Si en el futuro Mateo necesitara **auditoría** de handoffs o **preferencias** guardadas en el WMS, eso sería un cambio de producto explícito y una migración nueva; el handoff en sí no persiste en PostgreSQL.
 
 ## Documentación relacionada
 
 - [Login — Fase 1](login-fase1.md) — esquema `usuario`, Auth y reglas de login WMS.
-- [polaria-wms-api](https://github.com/PolariaTech/polaria-wms-api) — implementación del endpoint de handoff y firma JWT.
-- [polaria-wms-web](https://github.com/PolariaTech/polaria-wms-web) — UI que enlaza al chatbot tras login.
+- [Widget Mateo — conversaciones](WIDGET-MATEO-CONVERSACIONES.md) — tablas, RLS, n8n, retención.
+- [polaria-wms-api](https://github.com/PolariaTech/polaria-wms-api) — handoff JWT, widget-token y REST de conversaciones.
+- [polaria-wms-web](https://github.com/PolariaTech/polaria-wms-web) — UI SSO y host del widget embebido.
