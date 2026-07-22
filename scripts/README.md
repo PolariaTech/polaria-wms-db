@@ -26,6 +26,7 @@ Datos base: configurador TI, empresa ACME, cuenta ACME-01, admin y operador.
 validate-rls-multitenant.sql          # POL-2 (001–019)
 validate-rls-multitenant-supabase.sql # remoto: npx supabase db query --linked -f ...
 validate-rls-operativo.sql            # POL-33 (020–030), tras multitenant
+validate-rls-pol138.sql               # POL-138 (7 tablas críticas + cross-tenant)
 ```
 
 `validate-rls-multitenant.sql` extiende el seed (ACME-02, bodegas, custodio, admin empresa) y ejecuta 6 pruebas POL-2.
@@ -47,7 +48,8 @@ Simulación: `SET LOCAL ROLE authenticated` + `set_config('request.jwt.claim.sub
 2. Ejecutar `validate-phase1.sql`.
 3. Ejecutar `validate-rls-multitenant.sql`.
 4. Ejecutar `validate-rls-operativo.sql`.
-5. Revisar mensajes `NOTICE` / ausencia de `ERROR`.
+5. Ejecutar `validate-rls-pol138.sql` (POL-138).
+6. Revisar mensajes `NOTICE` / ausencia de `ERROR`.
 
 ## Otros
 
