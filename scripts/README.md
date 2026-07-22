@@ -27,6 +27,7 @@ validate-rls-multitenant.sql          # POL-2 (001–019)
 validate-rls-multitenant-supabase.sql # remoto: npx supabase db query --linked -f ...
 validate-rls-operativo.sql            # POL-33 (020–030), tras multitenant
 validate-rls-pol138.sql               # POL-138 (7 tablas críticas + cross-tenant)
+validate-widget-auth-pol137.sql       # POL-137 (historial widget_conversacion + spoof cuenta)
 ```
 
 `validate-rls-multitenant.sql` extiende el seed (ACME-02, bodegas, custodio, admin empresa) y ejecuta 6 pruebas POL-2.
