@@ -29,6 +29,7 @@ validate-rls-operativo.sql            # POL-33 (020–030), tras multitenant
 validate-rls-pol138.sql               # POL-138 (7 tablas críticas + cross-tenant)
 validate-widget-auth-pol137.sql       # POL-137 (historial widget_conversacion + spoof cuenta)
 validate-mapa-pol141.sql              # POL-141 (estado_slot vs warehouse_state)
+validate-security-hardening.sql       # Postura RLS + append-only + security_event
 ```
 
 `validate-rls-multitenant.sql` extiende el seed (ACME-02, bodegas, custodio, admin empresa) y ejecuta 6 pruebas POL-2.
