@@ -9,6 +9,8 @@
 --
 -- Ejecutar como postgres (o rol con SET ROLE authenticated).
 
+SET search_path TO public, mateo_support, test_rls;
+
 CREATE SCHEMA IF NOT EXISTS test_rls;
 
 CREATE OR REPLACE FUNCTION auth.uid()

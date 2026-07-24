@@ -28,12 +28,16 @@ BEGIN
     INTO v_rls_off
     FROM pg_class c
     JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE n.nspname = 'public'
+    WHERE (
+            (n.nspname = 'public' AND c.relname IN (
+                'empresa', 'cuenta', 'bodega', 'warehouse_state',
+                'movimiento_inventario', 'auditoria_operacion'
+            ))
+            OR (n.nspname = 'mateo_support' AND c.relname IN (
+                'widget_conversacion', 'widget_mensaje'
+            ))
+          )
       AND c.relkind = 'r'
-      AND c.relname IN (
-          'empresa', 'cuenta', 'bodega', 'warehouse_state',
-          'movimiento_inventario', 'widget_conversacion', 'auditoria_operacion'
-      )
       AND NOT c.relrowsecurity;
 
     PERFORM test_rls.assert_true(

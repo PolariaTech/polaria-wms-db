@@ -5,6 +5,8 @@
 --
 -- Ejecutar en Supabase SQL Editor o: psql -f scripts/validate-widget-auth-pol137.sql
 
+SET search_path TO public, mateo_support, test_rls;
+
 CREATE SCHEMA IF NOT EXISTS test_rls;
 
 CREATE OR REPLACE FUNCTION test_rls.assert_true(p_label text, p_ok boolean)
