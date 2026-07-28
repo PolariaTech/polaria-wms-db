@@ -35,10 +35,10 @@ REVOKE ALL ON cuenta_reporte_embed FROM authenticated, anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON cuenta_reporte_embed TO postgres;
 GRANT SELECT, INSERT, UPDATE, DELETE ON cuenta_reporte_embed TO service_role;
 
--- Seed: cuenta JBR (023WA)
+-- Seed: cuenta JBR (bodega externa TCI)
 INSERT INTO cuenta_reporte_embed (codigo_cuenta, embed_url, esta_activo)
 VALUES (
-    '023WA',
+    'JBR',
     'https://datastudio.google.com/embed/reporting/8319190c-7a5c-48b2-9b1d-84701d583dd9/page/RMmyF',
     true
 )
