@@ -28,6 +28,7 @@ validate-rls-multitenant-supabase.sql # remoto: npx supabase db query --linked -
 validate-rls-operativo.sql            # POL-33 (020–030), tras multitenant
 validate-rls-pol138.sql               # POL-138 (7 tablas críticas + cross-tenant)
 validate-widget-auth-pol137.sql       # POL-137 (historial widget_conversacion + spoof cuenta)
+validate-widget-conversaciones-pol180.sql # POL-180 (aislamiento A/B + continuidad + dedupe reintentos)
 validate-mapa-pol141.sql              # POL-141 (estado_slot vs warehouse_state)
 validate-security-hardening.sql       # Postura RLS + append-only + security_event
 ```
@@ -40,6 +41,12 @@ validate-security-hardening.sql       # Postura RLS + append-only + security_eve
 - Operador no puede INSERT en `warehouse_state`
 - Configurador ve catálogos multi-cuenta
 - Custodio ve stock solo de su bodega asignada
+
+`validate-widget-conversaciones-pol180.sql` valida para el chat:
+
+- Continuidad de historial del dueño (mismo usuario recupera mensajes)
+- Aislamiento cruzado A/B (otro tenant no ve la conversación)
+- Dedupe por reintento normal (mismo payload + timestamp bloqueado por índice único)
 
 Simulación: `SET LOCAL ROLE authenticated` + `set_config('request.jwt.claim.sub', '<id_auth>', true)`.
 
