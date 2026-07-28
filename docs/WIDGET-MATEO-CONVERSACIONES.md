@@ -2,8 +2,10 @@
 
 Fuente de verdad en **PostgreSQL / Supabase**. No usar `localStorage` como almacén de producción.
 
-Migración: [`migrations/051_widget_mateo_conversaciones.sql`](../migrations/051_widget_mateo_conversaciones.sql)  
-Espejo Supabase CLI: [`supabase/migrations/051_widget_mateo_conversaciones.sql`](../supabase/migrations/051_widget_mateo_conversaciones.sql)
+Migración base: [`migrations/051_widget_mateo_conversaciones.sql`](../migrations/051_widget_mateo_conversaciones.sql)  
+Endurecimiento RLS: [`migrations/052_widget_conversacion_rls_cuenta.sql`](../migrations/052_widget_conversacion_rls_cuenta.sql)  
+Schema `mateo_support`: [`migrations/055_widget_tables_mateo_support_schema.sql`](../migrations/055_widget_tables_mateo_support_schema.sql)  
+Dedupe reintentos: [`migrations/057_widget_mensaje_dedupe_reintento.sql`](../migrations/057_widget_mensaje_dedupe_reintento.sql)
 
 **Estado:** aplicada en el proyecto Supabase de desarrollo (`widget_conversacion` / `widget_mensaje` + `resolve_web_user`).
 
@@ -51,6 +53,20 @@ Alineado al formato del widget (`role`, `type`, `content`, `timestamp`, `isError
 | `created_at` | `timestamp` | Mapeo desde el cliente/API |
 
 Índice: `(id_conversacion, created_at ASC)`.
+
+### Dedupe por reintento (POL-139 / POL-176)
+
+Para evitar mensajes duplicados cuando el cliente reintenta el mismo append, existe el índice único:
+
+- `uq_widget_mensaje_reintento` sobre:
+  - `id_conversacion`
+  - `rol`
+  - `tipo`
+  - `es_error`
+  - `created_at`
+  - `md5(contenido)`
+
+Con esto, un reintento normal con el mismo payload/timestamp no crea una segunda fila.
 
 ## RLS
 
