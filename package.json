@@ -1,8 +1,8 @@
 {
   "name": "polaria-wms-db",
-  "version": "2.4.3",
+  "version": "2.4.9",
   "private": true,
-  "description": "Migraciones PostgreSQL / Supabase de Polaria WMS 2.4.3",
+  "description": "Migraciones PostgreSQL / Supabase de Polaria WMS 2.4.9",
   "dependencies": {
     "pg": "^8.21.0"
   }
