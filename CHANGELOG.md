@@ -2,6 +2,12 @@
 
 Versión de producto alineada con Polaria WMS.
 
+## 2.7.5 — 2026-09-17
+
+- Migración **081**: teléfono único en `usuario`.
+- Migración **082**: `cuenta.acceso_wms` / `cuenta.acceso_mateo` (ya no se usan para el login).
+- Migración **083**: `usuario.acceso_wms` / `usuario.acceso_mateo`.
+
 ## 2.4.9 — 2026-09-03
 
 - Migración 068: `comprador.metadatos_alta`.
