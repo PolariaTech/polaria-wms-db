@@ -2,6 +2,14 @@
 
 Versión de producto alineada con Polaria WMS.
 
+## 2.7.15 — 2026-09-25
+
+- Migración **084**: `usuario_reporte_embed` (permisos de reportes por usuario) + `reporte_id` obligatorio en `cuenta_reporte_embed`.
+- Migración **085**: `tmp_producto_mas_vendido` (ranking temporal para filtros de exportación de precios).
+- Migración **086**: `tmp_grupo_perteneciente` (catálogo temporal de grupos por cuenta).
+- Seed de prueba Tecno: grupos pertenecientes.
+- Verificación manual: aplicar migraciones 084→086, confirmar tablas/constraints; correr `seeds/seed-tecno-grupos-prueba.sql` y revisar filas en `tmp_grupo_perteneciente` / `comprador.grupo` (cuenta Tecno). Resultado: PASS.
+
 ## 2.7.5 — 2026-09-17
 
 - Migración **081**: teléfono único en `usuario`.
