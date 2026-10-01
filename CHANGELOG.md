@@ -2,6 +2,15 @@
 
 Versión de producto alineada con Polaria WMS.
 
+## 2.8.20 — 2026-10-01
+
+- Migración **087**: `origen_correo` jsonb en `orden_venta`.
+- Migración **088**: surtido/captura por orden de trabajo (`id_orden_trabajo` / OT).
+
+## 2.8.12 — 2026-09-30
+
+- Migración **087**: `origen_correo` jsonb en `orden_venta` (órdenes de trabajo hijas desde correo/PDF).
+
 ## 2.7.15 — 2026-09-25
 
 - Migración **084**: `usuario_reporte_embed` (permisos de reportes por usuario) + `reporte_id` obligatorio en `cuenta_reporte_embed`.
