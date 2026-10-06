@@ -2,6 +2,10 @@
 
 Versión de producto alineada con Polaria WMS.
 
+## 2.9.12 — 2026-10-06
+
+- Migración **089**: estados `alistamiento` y `alistada` en `estado_orden_venta`.
+
 ## 2.8.20 — 2026-10-01
 
 - Migración **087**: `origen_correo` jsonb en `orden_venta`.
