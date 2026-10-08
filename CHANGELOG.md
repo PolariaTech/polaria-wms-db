@@ -2,9 +2,19 @@
 
 Versión de producto alineada con Polaria WMS.
 
+## 2.9.17 — 2026-10-08
+
+- Migración **099**: `orden_venta_linea.match_producto` jsonb (texto del cliente, sugerencia Mateo, elección del usuario).
+
+## 2.9.16 — 2026-10-07
+
+- Migración **098**: `bot_materializar_ov_desde_origen` también copia entrega (ventana, dirección, teléfono, andén, notas, prioridad) desde `origen_correo` a la cabecera de la OV.
+- Migración **097**: al insertar/actualizar `origen_correo` en OV `por_confirmar`, materializa cabecera desde el JSON (trigger `trg_bot_materializar_ov_origen`). Las líneas las interpreta Mateo al abrir.
+
 ## 2.9.12 — 2026-10-06
 
 - Migración **089**: estados `alistamiento` y `alistada` en `estado_orden_venta`.
+- `jwt_expiry` local: **604800** (7 días, máximo Supabase); sesión WMS 7 días (alineado a jwt_expiry).
 
 ## 2.8.20 — 2026-10-01
 
