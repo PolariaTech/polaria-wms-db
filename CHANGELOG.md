@@ -2,6 +2,10 @@
 
 Versión de producto alineada con Polaria WMS.
 
+## Unreleased
+
+- Migración **107**: `bot_materializar_ov_desde_origen` solo asigna comprador con match **exacto** (nombre o código normalizados); elimina fuzzy por token `LIKE` que generaba falsas identificaciones.
+
 ## 2.9.17 — 2026-10-08
 
 - Migración **099**: `orden_venta_linea.match_producto` jsonb (texto del cliente, sugerencia Mateo, elección del usuario).
