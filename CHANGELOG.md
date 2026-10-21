@@ -4,6 +4,7 @@ Versión de producto alineada con Polaria WMS.
 
 ## Unreleased
 
+- Migración **108**: backfill de `metadatos_catalogo.tipo_producto = 1` en `producto` de todos los schemas (`public`, `template_wms`, `emp_*`) cuando falta; no toca servicios ya marcados con `3`.
 - Migración **107**: `bot_materializar_ov_desde_origen` solo asigna comprador con match **exacto** (nombre o código normalizados); elimina fuzzy por token `LIKE` que generaba falsas identificaciones.
 
 ## 2.9.17 — 2026-10-08
