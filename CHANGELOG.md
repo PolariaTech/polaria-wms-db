@@ -4,6 +4,7 @@ Versión de producto alineada con Polaria WMS.
 
 ## Unreleased
 
+- Migración **113**: elimina el UNIQUE viejo solo por `id_orden_venta` en `orden_venta_surtido_captura` (schemas `emp_*` donde la 088 no lo borró por nombre) y asegura `uq_orden_venta_surtido_captura_orden_ot` en `public`, `template_wms` y `emp_*`. Corrige capturas por OT (REQ-193 / REQ-190).
 - Migración **108**: backfill de `metadatos_catalogo.tipo_producto = 1` en `producto` de todos los schemas (`public`, `template_wms`, `emp_*`) cuando falta; no toca servicios ya marcados con `3`.
 - Migración **107**: `bot_materializar_ov_desde_origen` solo asigna comprador con match **exacto** (nombre o código normalizados); elimina fuzzy por token `LIKE` que generaba falsas identificaciones.
 
