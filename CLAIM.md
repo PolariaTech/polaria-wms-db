@@ -10,6 +10,7 @@
 ### Zonas que voy a tocar
 - `migrations/114_correo_pedido_ingreso.sql` — archivo nuevo
 - `supabase/migrations/114_correo_pedido_ingreso.sql` — archivo nuevo
+- `supabase/tests/114_correo_pedido_ingreso_test.sql` — autorizada por el usuario el 2026-11-03
 
 ### Compartidos (cambio mínimo y aviso)
 - `CHANGELOG.md`
