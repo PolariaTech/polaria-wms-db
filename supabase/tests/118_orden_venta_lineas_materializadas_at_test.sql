@@ -53,35 +53,39 @@ BEGIN
     END LOOP;
 
     -- 3. La reserva es atomica: el UPDATE condicional gana una sola vez.
-    --    Se usa una tabla temporal con el mismo tipo de la columna real, para no depender
-    --    de las claves foraneas de orden_venta.
-    EXECUTE format(
-        'CREATE TEMP TABLE orden_reserva_prueba (id integer PRIMARY KEY, lineas_materializadas_at %s)',
-        'timestamptz'
-    );
-    INSERT INTO orden_reserva_prueba (id) VALUES (1);
+    --    Se usa una copia temporal con la estructura REAL de public.orden_venta (LIKE copia la
+    --    columna nueva: sin la migracion 118 esta afirmacion falla). Se quitan los NOT NULL de
+    --    la copia para no depender de las claves foraneas ni de los demas campos de la OV.
+    CREATE TEMP TABLE orden_reserva_prueba (LIKE public.orden_venta INCLUDING DEFAULTS);
+    FOR esquema IN
+        SELECT a.attname
+        FROM pg_attribute a
+        WHERE a.attrelid = 'orden_reserva_prueba'::regclass
+          AND a.attnum > 0 AND NOT a.attisdropped AND a.attnotnull
+    LOOP
+        EXECUTE format('ALTER TABLE orden_reserva_prueba ALTER COLUMN %I DROP NOT NULL', esquema);
+    END LOOP;
+    INSERT INTO orden_reserva_prueba (id_orden_venta) VALUES (gen_random_uuid());
 
     UPDATE orden_reserva_prueba SET lineas_materializadas_at = now()
-    WHERE id = 1 AND lineas_materializadas_at IS NULL;
+    WHERE lineas_materializadas_at IS NULL;
     GET DIAGNOSTICS filas = ROW_COUNT;
     IF filas <> 1 THEN
         RAISE EXCEPTION 'FALLA 3: la primera reserva deberia ganar 1 fila y gano %', filas;
     END IF;
 
     UPDATE orden_reserva_prueba SET lineas_materializadas_at = now()
-    WHERE id = 1 AND lineas_materializadas_at IS NULL;
+    WHERE lineas_materializadas_at IS NULL;
     GET DIAGNOSTICS filas = ROW_COUNT;
     IF filas <> 0 THEN
         RAISE EXCEPTION 'FALLA 3: la segunda reserva deberia perder (0 filas) y gano %', filas;
     END IF;
 
     -- 4. Una reserva vencida (mas de 2 minutos) se puede retomar
-    UPDATE orden_reserva_prueba SET lineas_materializadas_at = now() - interval '3 minutes'
-    WHERE id = 1;
+    UPDATE orden_reserva_prueba SET lineas_materializadas_at = now() - interval '3 minutes';
     UPDATE orden_reserva_prueba SET lineas_materializadas_at = now()
-    WHERE id = 1
-      AND (lineas_materializadas_at IS NULL
-           OR lineas_materializadas_at < now() - interval '2 minutes');
+    WHERE lineas_materializadas_at IS NULL
+       OR lineas_materializadas_at < now() - interval '2 minutes';
     GET DIAGNOSTICS filas = ROW_COUNT;
     IF filas <> 1 THEN
         RAISE EXCEPTION 'FALLA 4: una reserva vencida deberia poder retomarse y gano % filas', filas;
