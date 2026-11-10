@@ -12,6 +12,7 @@ DECLARE
     admite_nulos text;
     valor_por_defecto text;
     esquema text;
+    nombre_columna text;
     filas integer;
 BEGIN
     -- 1. La columna existe en public con el tipo correcto, admite NULL y no tiene default
@@ -57,13 +58,13 @@ BEGIN
     --    columna nueva: sin la migracion 118 esta afirmacion falla). Se quitan los NOT NULL de
     --    la copia para no depender de las claves foraneas ni de los demas campos de la OV.
     CREATE TEMP TABLE orden_reserva_prueba (LIKE public.orden_venta INCLUDING DEFAULTS);
-    FOR esquema IN
+    FOR nombre_columna IN
         SELECT a.attname
         FROM pg_attribute a
         WHERE a.attrelid = 'orden_reserva_prueba'::regclass
           AND a.attnum > 0 AND NOT a.attisdropped AND a.attnotnull
     LOOP
-        EXECUTE format('ALTER TABLE orden_reserva_prueba ALTER COLUMN %I DROP NOT NULL', esquema);
+        EXECUTE format('ALTER TABLE orden_reserva_prueba ALTER COLUMN %I DROP NOT NULL', nombre_columna);
     END LOOP;
     INSERT INTO orden_reserva_prueba (id_orden_venta) VALUES (gen_random_uuid());
 
