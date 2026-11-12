@@ -9,11 +9,17 @@
 --   * Espejo (esquemas distintos): el comprador destino se busca por
 --     wms_norm_alias(nombre) con coincidencia unica; el producto destino, por sku
 --     igual. 0 o mas de 1 coincidencia se descarta (sin_comprador / sin_producto).
+--     Si dos compradores de origen caen en el mismo (id_comprador_destino, clave),
+--     todos esos pares salen como conflicto_destino y no se insertan.
 --
 -- Requiere la migracion 120 (wms_norm_alias, alias_normalizado e indices nuevos).
 -- Pegar el archivo entero en el editor SQL de Supabase. Termina en ROLLBACK:
 -- no guarda nada. Cambiar el ROLLBACK final a COMMIT solo si el reporte coincide
--- con el del modo de prueba.
+-- con el del modo de prueba. En el modo de prueba, insertado_filas = insertado.
+--
+-- Conceptos del reporte: origen, descartado_umbral, sin_comprador, sin_producto,
+-- descartado_servicio, conflicto_destino, ya_existia, insertado, insertado_filas,
+-- control_naranja_a_aguacate, control_servicio_insertado.
 --
 -- Parametros editables: la tabla siembra_parametros.
 
@@ -34,6 +40,7 @@ DECLARE
     v_min_mayoria numeric;
     v_espejo boolean;
     v_espejo_sql text;
+    v_filas int;
 BEGIN
     SELECT
         p.esquema_origen,
@@ -214,37 +221,56 @@ BEGIN
                 HAVING count(*) = 1
             ) producto_dest
               ON producto_dest.sku = po.sku
+        ),
+        pre_clasificados AS (
+            SELECT
+                m.clave,
+                m.top,
+                m.total,
+                m.alias,
+                m.id_comprador_destino,
+                m.id_producto_destino,
+                m.categoria::text AS categoria,
+                m.descripcion,
+                CASE
+                    WHEN m.total < %5$s
+                      OR (m.top::numeric / m.total) < %6$s
+                        THEN 'descartado_umbral'
+                    WHEN %7$s AND m.id_comprador_destino IS NULL
+                        THEN 'sin_comprador'
+                    WHEN %7$s AND m.id_producto_destino IS NULL
+                        THEN 'sin_producto'
+                    WHEN m.categoria::text IS DISTINCT FROM 'venta'
+                        THEN 'descartado_servicio'
+                END AS clasificacion_previa
+            FROM mapeados m
         )
         SELECT
-            m.clave,
-            m.top,
-            m.total,
-            m.alias,
-            m.id_comprador_destino,
-            m.id_producto_destino,
-            m.categoria::text AS categoria,
-            m.descripcion,
+            p.clave,
+            p.top,
+            p.total,
+            p.alias,
+            p.id_comprador_destino,
+            p.id_producto_destino,
+            p.categoria,
+            p.descripcion,
             CASE
-                WHEN m.total < %5$s
-                  OR (m.top::numeric / m.total) < %6$s
-                    THEN 'descartado_umbral'
-                WHEN %7$s AND m.id_comprador_destino IS NULL
-                    THEN 'sin_comprador'
-                WHEN %7$s AND m.id_producto_destino IS NULL
-                    THEN 'sin_producto'
-                WHEN m.categoria::text IS DISTINCT FROM 'venta'
-                    THEN 'descartado_servicio'
+                WHEN p.clasificacion_previa IS NOT NULL
+                    THEN p.clasificacion_previa
+                WHEN count(*) FILTER (WHERE p.clasificacion_previa IS NULL)
+                       OVER (PARTITION BY p.id_comprador_destino, p.clave) > 1
+                    THEN 'conflicto_destino'
                 WHEN EXISTS (
                     SELECT 1
                     FROM %2$I.comprador_producto_alias ya
                     WHERE ya.codigo_cuenta = %4$L
-                      AND ya.id_comprador = m.id_comprador_destino
-                      AND ya.alias_normalizado = m.clave
+                      AND ya.id_comprador = p.id_comprador_destino
+                      AND ya.alias_normalizado = p.clave
                 )
                     THEN 'ya_existia'
                 ELSE 'insertado'
             END AS clasificacion
-        FROM mapeados m
+        FROM pre_clasificados p
         $q$,
         v_esquema_origen,
         v_esquema_destino,
@@ -272,6 +298,7 @@ BEGIN
         v_esquema_destino,
         v_cuenta_destino
     );
+    GET DIAGNOSTICS v_filas = ROW_COUNT;
 
     INSERT INTO siembra_reporte (concepto, pares)
     VALUES
@@ -292,6 +319,10 @@ BEGIN
             SELECT count(*)::int FROM siembra_candidatos
             WHERE clasificacion = 'descartado_servicio'
         )),
+        ('conflicto_destino', (
+            SELECT count(*)::int FROM siembra_candidatos
+            WHERE clasificacion = 'conflicto_destino'
+        )),
         ('ya_existia', (
             SELECT count(*)::int FROM siembra_candidatos
             WHERE clasificacion = 'ya_existia'
@@ -300,6 +331,7 @@ BEGIN
             SELECT count(*)::int FROM siembra_candidatos
             WHERE clasificacion = 'insertado'
         )),
+        ('insertado_filas', v_filas),
         ('control_naranja_a_aguacate', (
             SELECT count(*)::int FROM siembra_candidatos
             WHERE clasificacion = 'insertado'
