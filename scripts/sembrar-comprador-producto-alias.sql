@@ -6,8 +6,8 @@
 --
 -- Modos:
 --   * Mismo esquema y misma cuenta: usa id_comprador e id_producto tal cual.
---   * Espejo (esquemas distintos): el comprador destino se busca por
---     wms_norm_alias(nombre) con coincidencia unica; el producto destino, por sku
+--   * Espejo (esquemas distintos): el comprador destino se busca por codigo unico
+--     y, si no hay, por wms_norm_alias(nombre) unico; el producto destino, por sku
 --     igual. 0 o mas de 1 coincidencia se descarta (sin_comprador / sin_producto).
 --     Si dos compradores de origen caen en el mismo (id_comprador_destino, clave),
 --     todos esos pares salen como conflicto_destino y no se insertan.
@@ -179,7 +179,10 @@ BEGIN
                 pares.total,
                 pares.alias,
                 CASE
-                    WHEN %7$s THEN comprador_dest.id_comprador
+                    WHEN %7$s THEN coalesce(
+                        comprador_dest_codigo.id_comprador,
+                        comprador_dest_nombre.id_comprador
+                    )
                     ELSE pares.id_comprador_origen
                 END AS id_comprador_destino,
                 CASE
@@ -201,14 +204,25 @@ BEGIN
               ON po.id_producto = pares.id_producto_origen
             LEFT JOIN (
                 SELECT
+                    c.codigo,
+                    (array_agg(c.id_comprador))[1] AS id_comprador
+                FROM %2$I.comprador c
+                WHERE c.codigo_cuenta = %4$L
+                  AND nullif(btrim(c.codigo), '') IS NOT NULL
+                GROUP BY c.codigo
+                HAVING count(*) = 1
+            ) comprador_dest_codigo
+              ON comprador_dest_codigo.codigo = co.codigo
+            LEFT JOIN (
+                SELECT
                     public.wms_norm_alias(c.nombre) AS nombre_norm,
                     (array_agg(c.id_comprador))[1] AS id_comprador
                 FROM %2$I.comprador c
                 WHERE c.codigo_cuenta = %4$L
                 GROUP BY public.wms_norm_alias(c.nombre)
                 HAVING count(*) = 1
-            ) comprador_dest
-              ON comprador_dest.nombre_norm = public.wms_norm_alias(co.nombre)
+            ) comprador_dest_nombre
+              ON comprador_dest_nombre.nombre_norm = public.wms_norm_alias(co.nombre)
             LEFT JOIN (
                 SELECT
                     p.sku,
