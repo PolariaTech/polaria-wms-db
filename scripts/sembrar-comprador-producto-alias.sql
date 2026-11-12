@@ -202,7 +202,7 @@ BEGIN
             LEFT JOIN (
                 SELECT
                     public.wms_norm_alias(c.nombre) AS nombre_norm,
-                    min(c.id_comprador) AS id_comprador
+                    (array_agg(c.id_comprador))[1] AS id_comprador
                 FROM %2$I.comprador c
                 WHERE c.codigo_cuenta = %4$L
                 GROUP BY public.wms_norm_alias(c.nombre)
@@ -212,7 +212,7 @@ BEGIN
             LEFT JOIN (
                 SELECT
                     p.sku,
-                    min(p.id_producto) AS id_producto,
+                    (array_agg(p.id_producto))[1] AS id_producto,
                     min(p.descripcion) AS descripcion,
                     min(p.categoria::text) AS categoria
                 FROM %2$I.producto p
