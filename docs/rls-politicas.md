@@ -138,6 +138,7 @@ Solo **`auth_wms_es_configurador()`** puede escribir vía PostgREST en tablas PO
 - [Login fase 1](login-fase1.md)
 - [ADR-001 Multi-tenant](adr/ADR-001-multi-tenant.md)
 - [ADR-003 RBAC](adr/ADR-003-rbac.md)
+- [ADR-004 Dual-write Orden de Venta](adr/ADR-004-dual-write-orden-venta.md)
 
 ## Excluido (sin RLS POL-33)
 
