@@ -3,6 +3,9 @@
   "version": "2.9.12",
   "private": true,
   "description": "Migraciones PostgreSQL / Supabase de Polaria WMS 2.9.12",
+  "scripts": {
+    "test": "bash scripts/sql-smoke.sh"
+  },
   "dependencies": {
     "pg": "^8.21.0"
   }
