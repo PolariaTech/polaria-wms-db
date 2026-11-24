@@ -65,4 +65,15 @@ sql -c "CREATE TABLE IF NOT EXISTS public.rate_limit_bucket (id uuid PRIMARY KEY
 sql -f "$prefijo/migrations/121_mateo_handoff_jti_rate_limit_bucket_rls.sql"
 sql -f "$prefijo/supabase/tests/121_mateo_handoff_jti_rate_limit_bucket_rls_test.sql"
 
+# Migración 122: tablas mínimas con solo la llave, porque la migración agrega las columnas.
+# public.empresa vacía: no hay schemas emp_*, así que la prueba recorre solo public.
+sql -c "CREATE TABLE IF NOT EXISTS public.empresa (schema_name text);"
+sql -c "CREATE TABLE IF NOT EXISTS public.orden_venta (id_orden_venta uuid PRIMARY KEY);"
+sql -c "CREATE TABLE IF NOT EXISTS public.orden_venta_linea (id_orden_venta_linea uuid PRIMARY KEY);"
+sql -c "CREATE TABLE IF NOT EXISTS public.orden_trabajo (id_orden_trabajo uuid PRIMARY KEY);"
+sql -f "$prefijo/migrations/122_orden_venta_linea_precio_y_ot_id_orden_venta.sql"
+# Segunda corrida: la migración debe ser idempotente.
+sql -f "$prefijo/migrations/122_orden_venta_linea_precio_y_ot_id_orden_venta.sql"
+sql -f "$prefijo/supabase/tests/122_orden_venta_linea_precio_y_ot_id_orden_venta_test.sql"
+
 echo "SQL_SMOKE_OK"
