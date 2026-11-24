@@ -44,13 +44,8 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Humo SQL bloqueante (auth, migración 121, estado OV)
-        run: |
-          psql -v ON_ERROR_STOP=1 -f scripts/bootstrap-auth.sql
-          psql -v ON_ERROR_STOP=1 -c "SELECT auth.uid() IS NULL AS ok;"
-          psql -v ON_ERROR_STOP=1 -c "DO \$\$ BEGIN CREATE ROLE anon NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END \$\$;"
-          psql -v ON_ERROR_STOP=1 -c "DO \$\$ BEGIN CREATE ROLE authenticated NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END \$\$;"
-          psql -v ON_ERROR_STOP=1 -c "CREATE TABLE IF NOT EXISTS public.mateo_handoff_jti (id uuid PRIMARY KEY);"
-          psql -v ON_ERROR_STOP=1 -c "CREATE TABLE IF NOT EXISTS public.rate_limit_bucket (id uuid PRIMARY KEY);"
-          psql -v ON_ERROR_STOP=1 -f migrations/121_mateo_handoff_jti_rate_limit_bucket_rls.sql
-          psql -v ON_ERROR_STOP=1 -f supabase/tests/121_mateo_handoff_jti_rate_limit_bucket_rls_test.sql
+      - name: Cliente psql
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Humo SQL bloqueante (auth y migración 121)
+        run: bash scripts/sql-smoke.sh
