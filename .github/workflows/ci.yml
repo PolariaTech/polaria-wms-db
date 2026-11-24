@@ -1,0 +1,56 @@
+name: CI
+
+# Score-10 P2: un solo gate SQL. No hay job informativo en paralelo.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sql-smoke-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: polaria
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d polaria"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: polaria
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Humo SQL bloqueante (auth, migración 121, estado OV)
+        run: |
+          psql -v ON_ERROR_STOP=1 -f scripts/bootstrap-auth.sql
+          psql -v ON_ERROR_STOP=1 -c "SELECT auth.uid() IS NULL AS ok;"
+          psql -v ON_ERROR_STOP=1 -c "DO \$\$ BEGIN CREATE ROLE anon NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END \$\$;"
+          psql -v ON_ERROR_STOP=1 -c "DO \$\$ BEGIN CREATE ROLE authenticated NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END \$\$;"
+          psql -v ON_ERROR_STOP=1 -c "CREATE TABLE IF NOT EXISTS public.mateo_handoff_jti (id uuid PRIMARY KEY);"
+          psql -v ON_ERROR_STOP=1 -c "CREATE TABLE IF NOT EXISTS public.rate_limit_bucket (id uuid PRIMARY KEY);"
+          psql -v ON_ERROR_STOP=1 -f migrations/121_mateo_handoff_jti_rate_limit_bucket_rls.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/121_mateo_handoff_jti_rate_limit_bucket_rls_test.sql
