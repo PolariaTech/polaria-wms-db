@@ -65,6 +65,13 @@ sql -c "CREATE TABLE IF NOT EXISTS public.rate_limit_bucket (id uuid PRIMARY KEY
 sql -f "$prefijo/migrations/121_mateo_handoff_jti_rate_limit_bucket_rls.sql"
 sql -f "$prefijo/supabase/tests/121_mateo_handoff_jti_rate_limit_bucket_rls_test.sql"
 
+# Migración 112: enum estado_orden_venta con revisada y facturada.
+sql -c "DO \$\$ BEGIN CREATE TYPE public.estado_orden_venta AS ENUM ('por_confirmar', 'confirmada', 'alistamiento', 'alistada', 'despachada', 'cancelada'); EXCEPTION WHEN duplicate_object THEN NULL; END \$\$;"
+sql -f "$prefijo/migrations/112_estado_orden_venta_revisada_facturada.sql"
+# Segunda corrida: la migración debe ser idempotente.
+sql -f "$prefijo/migrations/112_estado_orden_venta_revisada_facturada.sql"
+sql -f "$prefijo/supabase/tests/112_estado_orden_venta_revisada_facturada_test.sql"
+
 # Migración 122: tablas mínimas con solo la llave, porque la migración agrega las columnas.
 # public.empresa vacía: no hay schemas emp_*, así que la prueba recorre solo public.
 sql -c "CREATE TABLE IF NOT EXISTS public.empresa (schema_name text);"
