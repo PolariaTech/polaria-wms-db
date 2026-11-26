@@ -9,6 +9,7 @@
 
 ### Zonas que voy a tocar
 - `CHANGELOG.md`
+- `scripts/sql-smoke.sh` — autorizada por el usuario el 2026-11-26
 
 ### Compartidos (cambio mínimo y aviso)
 Ninguno.
