@@ -92,4 +92,11 @@ sql -f "$prefijo/migrations/123_ov_estado_solo_api_nest.sql"
 sql -f "$prefijo/migrations/123_ov_estado_solo_api_nest.sql"
 sql -f "$prefijo/supabase/tests/123_ov_estado_solo_api_nest_test.sql"
 
+# Migración 124: orden_venta_linea.posicion guarda el orden de la OC (REQ-370).
+sql -c "CREATE TABLE IF NOT EXISTS emp_smoke.orden_venta_linea (id_orden_venta_linea uuid PRIMARY KEY);"
+sql -f "$prefijo/migrations/124_orden_venta_linea_posicion.sql"
+# Segunda corrida: la migración debe ser idempotente.
+sql -f "$prefijo/migrations/124_orden_venta_linea_posicion.sql"
+sql -f "$prefijo/supabase/tests/124_orden_venta_linea_posicion_test.sql"
+
 echo "SQL_SMOKE_OK"
