@@ -11,6 +11,8 @@
 - `supabase/migrations/119_correo_pedido_ingreso_intentos.sql`
 - `migrations/119_correo_pedido_ingreso_intentos.sql`
 - `supabase/tests/119_correo_pedido_ingreso_intentos_test.sql`
+- `scripts/sql-smoke.sh` — autorizada por el usuario el 2026-11-27
+- `CHANGELOG.md` — autorizada por el usuario el 2026-11-27
 
 ### Compartidos (cambio mínimo y aviso)
 Ninguno.
