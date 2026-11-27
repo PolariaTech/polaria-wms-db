@@ -99,4 +99,12 @@ sql -f "$prefijo/migrations/124_orden_venta_linea_posicion.sql"
 sql -f "$prefijo/migrations/124_orden_venta_linea_posicion.sql"
 sql -f "$prefijo/supabase/tests/124_orden_venta_linea_posicion_test.sql"
 
+# Migración 125: latido_at del ingreso de correo y tabla correo_ot_trabajo (REQ-439).
+sql -c "CREATE TABLE IF NOT EXISTS public.correo_pedido_ingreso (id uuid PRIMARY KEY);"
+sql -c "CREATE TABLE IF NOT EXISTS emp_smoke.correo_pedido_ingreso (id uuid PRIMARY KEY);"
+sql -f "$prefijo/migrations/125_correo_ingreso_latido_y_trabajos_ot.sql"
+# Segunda corrida: la migración debe ser idempotente.
+sql -f "$prefijo/migrations/125_correo_ingreso_latido_y_trabajos_ot.sql"
+sql -f "$prefijo/supabase/tests/125_correo_ingreso_latido_y_trabajos_ot_test.sql"
+
 echo "SQL_SMOKE_OK"
