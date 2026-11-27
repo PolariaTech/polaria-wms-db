@@ -31,6 +31,30 @@ BEGIN
     END IF;
 END $$;
 
+-- Los esquemas se toman de pg_namespace (como las migraciones 123 y 124) y la columna se asegura en
+-- cada uno que tenga la tabla: la API la lee en cada emp_*, y así la migración no depende de que la
+-- función de sincronización exista.
+DO $$
+DECLARE
+    r record;
+BEGIN
+    FOR r IN
+        SELECT n.nspname AS schema_name
+        FROM pg_namespace n
+        WHERE n.nspname = 'public'
+           OR n.nspname = 'template_wms'
+           OR n.nspname LIKE 'emp\_%'
+    LOOP
+        IF to_regclass(format('%I.correo_pedido_ingreso', r.schema_name)) IS NULL THEN
+            CONTINUE;
+        END IF;
+        EXECUTE format(
+            'ALTER TABLE %I.correo_pedido_ingreso ADD COLUMN IF NOT EXISTS latido_at timestamptz',
+            r.schema_name
+        );
+    END LOOP;
+END $$;
+
 -- 2. Trabajos de corrección de OT desde el correo.
 CREATE TABLE IF NOT EXISTS public.correo_ot_trabajo (
     id_trabajo uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -44,7 +68,7 @@ CREATE TABLE IF NOT EXISTS public.correo_ot_trabajo (
     error_http_status integer,
     error_cuerpo jsonb,
     latido_at timestamptz NOT NULL DEFAULT now(),
-    creado_at timestamptz NOT NULL DEFAULT now(),
+    created_at timestamptz NOT NULL DEFAULT now(),
     terminado_at timestamptz,
     CONSTRAINT correo_ot_trabajo_terminado_coherente
         CHECK ((estado = 'procesando') = (terminado_at IS NULL))

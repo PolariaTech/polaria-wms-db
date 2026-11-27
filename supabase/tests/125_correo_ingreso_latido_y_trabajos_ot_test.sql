@@ -13,6 +13,7 @@ DECLARE
     rls boolean;
     permiso boolean;
     rol text;
+    nombre_esquema text;
 BEGIN
     -- 1. latido_at existe en public, es timestamptz y admite NULL (filas anteriores a la 125).
     SELECT data_type, is_nullable INTO tipo, admite_nulo
@@ -28,6 +29,25 @@ BEGIN
     IF admite_nulo <> 'YES' THEN
         RAISE EXCEPTION 'FALLA 1: latido_at no admite NULL y las filas anteriores a la 125 lo tienen';
     END IF;
+
+    -- 1b. latido_at llegó a template_wms (si existe) y a cada esquema emp_* que tenga la tabla:
+    -- la API lo lee en el esquema de cada empresa.
+    FOR nombre_esquema IN
+        SELECT s.schema_name
+        FROM information_schema.schemata s
+        WHERE s.schema_name = 'template_wms' OR s.schema_name LIKE 'emp\_%'
+    LOOP
+        IF EXISTS (
+            SELECT 1 FROM information_schema.tables
+            WHERE table_schema = nombre_esquema AND table_name = 'correo_pedido_ingreso'
+        ) AND NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = nombre_esquema AND table_name = 'correo_pedido_ingreso'
+              AND column_name = 'latido_at'
+        ) THEN
+            RAISE EXCEPTION 'FALLA 1b: falta latido_at en %.correo_pedido_ingreso', nombre_esquema;
+        END IF;
+    END LOOP;
 
     -- 2. correo_ot_trabajo existe con RLS activo.
     SELECT c.relrowsecurity INTO rls
