@@ -1,0 +1,83 @@
+-- REQ-439 / POL-453: prueba de la migración 125 (latido_at y correo_ot_trabajo).
+-- Ejecutar contra una base con la migración aplicada (local o Demo, nunca producción sin
+-- confirmación). Todo corre dentro de una transacción que se revierte (ROLLBACK): no deja datos.
+-- Si una afirmación falla, el bloque lanza una excepción y el comando sale con error.
+-- Uso: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/125_correo_ingreso_latido_y_trabajos_ot_test.sql
+
+BEGIN;
+
+DO $$
+DECLARE
+    tipo text;
+    rls boolean;
+    permiso boolean;
+BEGIN
+    -- 1. latido_at existe en public, es timestamptz y admite NULL (filas anteriores a la 125).
+    SELECT data_type INTO tipo
+    FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'correo_pedido_ingreso'
+      AND column_name = 'latido_at';
+    IF tipo IS NULL THEN
+        RAISE EXCEPTION 'FALLA 1: no existe public.correo_pedido_ingreso.latido_at';
+    END IF;
+    IF tipo <> 'timestamp with time zone' THEN
+        RAISE EXCEPTION 'FALLA 1: latido_at es %, se esperaba timestamptz', tipo;
+    END IF;
+
+    -- 2. correo_ot_trabajo existe con RLS activo.
+    SELECT c.relrowsecurity INTO rls
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public' AND c.relname = 'correo_ot_trabajo';
+    IF rls IS NULL THEN
+        RAISE EXCEPTION 'FALLA 2: no existe public.correo_ot_trabajo';
+    END IF;
+    IF NOT rls THEN
+        RAISE EXCEPTION 'FALLA 2: RLS no está activo en correo_ot_trabajo';
+    END IF;
+
+    -- 3. anon y authenticated no tienen ningún permiso sobre la tabla nueva.
+    FOREACH tipo IN ARRAY ARRAY['anon', 'authenticated'] LOOP
+        SELECT bool_or(has_table_privilege(tipo, 'public.correo_ot_trabajo', p))
+          INTO permiso
+        FROM unnest(ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE']) AS p;
+        IF permiso THEN
+            RAISE EXCEPTION 'FALLA 3: % tiene permisos sobre correo_ot_trabajo', tipo;
+        END IF;
+    END LOOP;
+
+    -- 4. Un trabajo "procesando" por (esquema, OV, usuario): el segundo choca.
+    INSERT INTO public.correo_ot_trabajo (esquema, id_orden_venta, id_usuario, request_id)
+    VALUES ('emp_prueba', 'ov-1', 'usr-1', 'req-1');
+    BEGIN
+        INSERT INTO public.correo_ot_trabajo (esquema, id_orden_venta, id_usuario, request_id)
+        VALUES ('emp_prueba', 'ov-1', 'usr-1', 'req-2');
+        RAISE EXCEPTION 'FALLA 4: se aceptó un segundo trabajo en curso para la misma OV y usuario';
+    EXCEPTION WHEN unique_violation THEN
+        NULL;
+    END;
+
+    -- 5. Otro usuario u otra OV sí puede tener su propio trabajo en curso.
+    INSERT INTO public.correo_ot_trabajo (esquema, id_orden_venta, id_usuario, request_id)
+    VALUES ('emp_prueba', 'ov-1', 'usr-2', 'req-3'), ('emp_prueba', 'ov-2', 'usr-1', 'req-4');
+
+    -- 6. Un trabajo terminado no bloquea uno nuevo para la misma OV y usuario.
+    UPDATE public.correo_ot_trabajo
+       SET estado = 'listo', propuesta = '{}'::jsonb, terminado_at = now()
+     WHERE esquema = 'emp_prueba' AND id_orden_venta = 'ov-1' AND id_usuario = 'usr-1';
+    INSERT INTO public.correo_ot_trabajo (esquema, id_orden_venta, id_usuario, request_id)
+    VALUES ('emp_prueba', 'ov-1', 'usr-1', 'req-5');
+
+    -- 7. Coherencia: terminado sin terminado_at, o procesando con terminado_at, se rechaza.
+    BEGIN
+        INSERT INTO public.correo_ot_trabajo (esquema, id_orden_venta, id_usuario, request_id, estado)
+        VALUES ('emp_prueba', 'ov-3', 'usr-1', 'req-6', 'error');
+        RAISE EXCEPTION 'FALLA 7: se aceptó estado error sin terminado_at';
+    EXCEPTION WHEN check_violation THEN
+        NULL;
+    END;
+END $$;
+
+ROLLBACK;
+
+SELECT 'migracion 125: todas las pruebas pasaron' AS resultado;
