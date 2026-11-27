@@ -3,8 +3,9 @@
 -- cada copia. Esta migración lo pasa a la base:
 --   1. correo_pedido_ingreso.latido_at: señal de vida de la copia que procesa el ingreso.
 --   2. public.correo_ot_trabajo: trabajos de corrección de OT (antes un Map en memoria).
--- Ambas tablas/columnas quedan con RLS activo y sin permisos para anon ni authenticated: el api
--- las usa por Prisma (conexión directa a Postgres), no por la API REST.
+-- correo_ot_trabajo queda con RLS activo, sin políticas y sin permisos para anon ni authenticated:
+-- el api la usa por Prisma (conexión directa a Postgres), no por la API REST. latido_at hereda el
+-- RLS y la política SELECT de correo_pedido_ingreso (migración 114); no es un dato sensible.
 -- Es idempotente. Va antes del despliegue del código de la API (v2.13.53 o posterior).
 
 -- 1. Señal de vida del ingreso de correo.

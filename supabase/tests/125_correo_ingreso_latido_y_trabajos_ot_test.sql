@@ -9,11 +9,13 @@ BEGIN;
 DO $$
 DECLARE
     tipo text;
+    admite_nulo text;
     rls boolean;
     permiso boolean;
+    rol text;
 BEGIN
     -- 1. latido_at existe en public, es timestamptz y admite NULL (filas anteriores a la 125).
-    SELECT data_type INTO tipo
+    SELECT data_type, is_nullable INTO tipo, admite_nulo
     FROM information_schema.columns
     WHERE table_schema = 'public' AND table_name = 'correo_pedido_ingreso'
       AND column_name = 'latido_at';
@@ -22,6 +24,9 @@ BEGIN
     END IF;
     IF tipo <> 'timestamp with time zone' THEN
         RAISE EXCEPTION 'FALLA 1: latido_at es %, se esperaba timestamptz', tipo;
+    END IF;
+    IF admite_nulo <> 'YES' THEN
+        RAISE EXCEPTION 'FALLA 1: latido_at no admite NULL y las filas anteriores a la 125 lo tienen';
     END IF;
 
     -- 2. correo_ot_trabajo existe con RLS activo.
@@ -37,12 +42,12 @@ BEGIN
     END IF;
 
     -- 3. anon y authenticated no tienen ningún permiso sobre la tabla nueva.
-    FOREACH tipo IN ARRAY ARRAY['anon', 'authenticated'] LOOP
-        SELECT bool_or(has_table_privilege(tipo, 'public.correo_ot_trabajo', p))
+    FOREACH rol IN ARRAY ARRAY['anon', 'authenticated'] LOOP
+        SELECT bool_or(has_table_privilege(rol, 'public.correo_ot_trabajo', privilegio))
           INTO permiso
-        FROM unnest(ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE']) AS p;
+        FROM unnest(ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE']) AS privilegio;
         IF permiso THEN
-            RAISE EXCEPTION 'FALLA 3: % tiene permisos sobre correo_ot_trabajo', tipo;
+            RAISE EXCEPTION 'FALLA 3: % tiene permisos sobre correo_ot_trabajo', rol;
         END IF;
     END LOOP;
 
@@ -73,6 +78,13 @@ BEGIN
         INSERT INTO public.correo_ot_trabajo (esquema, id_orden_venta, id_usuario, request_id, estado)
         VALUES ('emp_prueba', 'ov-3', 'usr-1', 'req-6', 'error');
         RAISE EXCEPTION 'FALLA 7: se aceptó estado error sin terminado_at';
+    EXCEPTION WHEN check_violation THEN
+        NULL;
+    END;
+    BEGIN
+        INSERT INTO public.correo_ot_trabajo (esquema, id_orden_venta, id_usuario, request_id, terminado_at)
+        VALUES ('emp_prueba', 'ov-4', 'usr-1', 'req-7', now());
+        RAISE EXCEPTION 'FALLA 7: se aceptó estado procesando con terminado_at';
     EXCEPTION WHEN check_violation THEN
         NULL;
     END;
